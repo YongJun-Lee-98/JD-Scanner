@@ -1,11 +1,16 @@
 """
 LangChain 체인 관리 모듈
+- 채용공고 요약 체인
+- 스킬 갭 분석 체인
+- 면접 질문 생성 체인
 """
 
-from typing import Optional, Dict, Any
+import json
+import re
+from typing import Any, Dict, List, Literal
 
-from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import PromptTemplate
+from langchain_ollama.llms import OllamaLLM
 
 from .lang_prompt import PromptConfig
 from .mapreduce_chain import MapReduceJobChain
@@ -156,3 +161,123 @@ class JobSummaryChain:
         self.temperature = new_temperature
         self.llm = self._initialize_llm()
         self.summary_chain = self._create_summary_chain()
+
+
+class SkillGapChain:
+    """스킬 갭 분석 및 면접 질문 생성을 위한 LangChain 클래스"""
+
+    def __init__(self, model_name: str = "llama3.2", temperature: float = 0.3):
+        """
+        체인 초기화
+
+        Args:
+            model_name: 사용할 Ollama 모델명
+            temperature: LLM 온도 설정 (0.0 ~ 1.0)
+        """
+        self.model_name = model_name
+        self.temperature = temperature
+        self.llm = OllamaLLM(model=self.model_name, temperature=self.temperature)
+        self.prompt_config = PromptConfig()
+
+    def _create_skill_gap_chain(self):
+        """스킬 갭 분석 체인 생성"""
+        prompt = self.prompt_config.get_skill_gap_prompt()
+        return prompt | self.llm
+
+    def _create_interview_questions_chain(self, language: Literal["ko", "en"] = "ko"):
+        """면접 질문 생성 체인 생성"""
+        prompt = self.prompt_config.get_interview_questions_prompt(language)
+        return prompt | self.llm
+
+    def _create_requirements_extraction_chain(self):
+        """요구사항 추출 체인 생성"""
+        prompt = self.prompt_config.get_requirements_extraction_prompt()
+        return prompt | self.llm
+
+    def extract_requirements(self, job_summary: str) -> Dict[str, Any]:
+        """
+        채용공고 요약에서 구조화된 요구사항 추출
+
+        Args:
+            job_summary: 채용공고 요약 텍스트
+
+        Returns:
+            구조화된 요구사항 딕셔너리
+        """
+        chain = self._create_requirements_extraction_chain()
+        result = chain.invoke({"job_summary": job_summary})
+
+        # JSON 파싱 시도
+        try:
+            json_match = re.search(r"\{.*\}", result, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+        except json.JSONDecodeError:
+            pass
+
+        # 파싱 실패 시 기본값 반환
+        return {
+            "job_title": "Unknown",
+            "required_languages": [],
+            "required_frameworks": [],
+            "required_tools": [],
+            "preferred_skills": [],
+            "experience_level": "Unknown",
+            "key_responsibilities": [],
+            "parse_error": True,
+        }
+
+    def analyze_skill_gap(
+        self,
+        job_requirements: Dict[str, Any],
+        github_profile: Dict[str, Any],
+    ) -> str:
+        """
+        스킬 갭 분석 수행
+
+        Args:
+            job_requirements: 채용공고 요구사항
+            github_profile: GitHub 프로필 요약
+
+        Returns:
+            스킬 갭 분석 결과 텍스트
+        """
+        chain = self._create_skill_gap_chain()
+
+        input_data = {
+            "job_requirements": json.dumps(
+                job_requirements, ensure_ascii=False, indent=2
+            ),
+            "github_profile": json.dumps(github_profile, ensure_ascii=False, indent=2),
+        }
+
+        return chain.invoke(input_data)
+
+    def generate_interview_questions(
+        self,
+        skill_gap_analysis: str,
+        job_title: str,
+        candidate_technologies: List[str],
+        language: Literal["ko", "en"] = "ko",
+    ) -> str:
+        """
+        맞춤형 면접 질문 생성
+
+        Args:
+            skill_gap_analysis: 스킬 갭 분석 결과
+            job_title: 지원 직무명
+            candidate_technologies: 지원자 보유 기술 목록
+            language: 출력 언어 ("ko" 또는 "en")
+
+        Returns:
+            면접 질문 목록 텍스트
+        """
+        chain = self._create_interview_questions_chain(language)
+
+        input_data = {
+            "skill_gap_analysis": skill_gap_analysis,
+            "job_title": job_title,
+            "candidate_technologies": ", ".join(candidate_technologies),
+        }
+
+        return chain.invoke(input_data)

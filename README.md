@@ -1,194 +1,238 @@
-# 🧪 LangChain 기반 채용공고 요약 시스템 - MVP
+# JD-Scanner
 
-사용자가 직접 입력한 **채용공고 URL**을 기반으로 LangChain-ollama를 활용해 핵심 정보를 자동으로 요약하고, 결과를 텍스트 형태로 저장하는 시스템입니다.  
+AI 기반 채용공고 분석 및 면접 준비 시스템입니다. 채용공고 URL과 GitHub 프로필을 분석하여 스킬 갭을 파악하고, 맞춤형 면접 질문을 생성합니다.
 
-## 📌 주요 기능
+## 주요 기능
 
-- **자동 내용 추출**: URL에서 채용공고 내용을 자동으로 스크래핑  
-- **AI 기반 요약**: LangChain + Ollama(llama3.2)를 활용한 구조화된 요약  
-- **결과 저장**: Markdown 형식으로 로컬 파일 저장  
-- **에러 핸들링**: URL 요청 실패 시 명확한 에러 메시지 제공  
+| 기능 | 설명 |
+|------|------|
+| **채용공고 요약** | URL에서 채용공고 스크래핑 및 AI 요약 |
+| **GitHub 분석** | 공개 레포지토리 분석 및 기술 스택 추출 |
+| **스킬 갭 분석** | 채용 요구사항과 보유 기술 비교 분석 |
+| **면접 질문 생성** | 한국어/영어 맞춤형 면접 질문 생성 |
+| **이메일 발송** | 분석 결과 이메일 자동 발송 |
+| **Discord 연동** | 요약 결과 Discord 채널 전송 |
 
-## 🎯 요약 포맷
+## 동작 흐름
 
 ```
-## 회사명: [회사명]
-
-### A. 회사소개 (비전, 연혁) & 직무 소개 (주요 업무)
-### B. 자격요건 (필수조건) & 우대사항 (선택 요건)  
-### C. 혜택 및 복지 & 기타사항
+[이메일/GitHub 입력] → [채용공고 URL 입력] → [채용공고 요약]
+                                                    ↓
+                                         [GitHub 프로필 분석]
+                                                    ↓
+                                         [스킬 갭 분석]
+                                                    ↓
+                                    [면접 질문 생성 (한/영)]
+                                                    ↓
+                              [파일 저장 + 이메일/Discord 발송]
 ```
 
-## ⚙️ 기술 스택
+## 기술 스택
 
-- **LLM 프레임워크**: LangChain + langchain-community  
-- **LLM 모델**: Ollama (llama3.2)  
-- **웹 스크래핑**: requests + BeautifulSoup4  
-- **패키지 관리**: uv  
+| 분류 | 기술 |
+|------|------|
+| Core | LangChain 0.3.25+ / LangChain-Ollama 0.3.3+ |
+| LLM | Ollama (llama3.2) |
+| 스크래핑 | BeautifulSoup4 / requests |
+| 이메일 | Gmail SMTP (smtplib) |
+| 연동 | discord.py 2.5.2+ |
+| 설정관리 | python-dotenv |
+| 패키지관리 | uv |
+| Python | 3.11+ |
 
-## 🚀 설치 및 실행
+## 프로젝트 구조
+
+```
+JD-Scanner/
+├── main.py                 # 메인 진입점
+├── pyproject.toml          # 프로젝트 메타데이터
+├── makefile                # 설치/실행 자동화
+├── .env                    # 환경설정
+├── src/
+│   ├── __init__.py         # 패키지 초기화
+│   ├── chain.py            # LangChain 체인 (요약 + 스킬갭)
+│   ├── lang_prompt.py      # 프롬프트 설정
+│   ├── lang_template.py    # 프롬프트 템플릿
+│   ├── discord_sender.py   # Discord 메시지 전송
+│   ├── email_sender.py     # 이메일 발송
+│   ├── github_analyzer.py  # GitHub 프로필 분석
+│   └── user_manager.py     # 사용자 정보 관리
+├── output/
+│   ├── users/              # 사용자 데이터 저장
+│   └── *.md                # 분석 결과 파일
+└── test/                   # 테스트 파일
+```
+
+## 설치 및 실행
 
 ### 1. 사전 준비
-본 프로젝트는 python이 설치되어 있어야합니다.  
-Recommend Python Version : 3.11.12   
-  
+
+- Python 3.11+ 설치
+- Ollama 설치 및 실행
 
 ### 2. 프로젝트 설정
 
-프로젝트 클론
 ```bash
-git clone https://github.com/HelloPy-Korea/JD-Scanner.git && \
+# 프로젝트 클론
+git clone https://github.com/HelloPy-Korea/JD-Scanner.git
 cd JD-Scanner
-```
 
-프로젝트 의존설치
-```bash
+# 의존성 설치
 make install
 ```
-Discord 봇 설정  
-[discord developer](https://discord.com/developers/applications) 접속 후  
-OAuth2 탭에 들어가서  
-OAuth2 URL Generator 탭에서 "bot"을 선택  
-이후 다음의 권한을 허용합니다.  
-"Send Messages"
 
-Discord에 메시지 보내기 설정
-.env 안에 DISCORD_BOT_TOKEN, DISCORD_CHANNEL_IDS 를 각각 입력해줍니다.  
+### 3. 환경 변수 설정
 
-> DISCORD_BOT_TOKEN 입력 방법 
-1. [discord developer](https://discord.com/developers/applications)에 접속하여 해당 봇에 접속 
-2. Bots 탭에 들어갑니다.
-3. Reset Token 버튼을 클릭 후 토큰을 Copy 합니다.
-4. .env 파일의 "DISCORD_BOT_TOKEN"값 입력해줍니다.
+`.env` 파일:
+```bash
+# Discord (선택)
+DISCORD_BOT_TOKEN=your_bot_token
+DISCORD_CHANNEL_IDS=channel_id_1,channel_id_2
 
-> DISCORD_CHANNEL_IDS 입력 방법
-1. 디스코드 방의 채널 명을 우클릭합니다.
-2. "채널 ID 복사하기"를 클릭합니다.
-3. .env 파일의 "DISCORD_CHANNEL_IDS"값 입력해줍니다.
+# 이메일 (Gmail SMTP)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SENDER_EMAIL=your_email@gmail.com
+SENDER_PASSWORD=your_app_password
 
-### 3. 실행
+# GitHub API (선택 - 높은 API 제한)
+GITHUB_TOKEN=your_github_token
+```
+
+**Gmail 앱 비밀번호 설정:**
+1. Google 계정 → 보안 → 2단계 인증 활성화
+2. 앱 비밀번호 생성 → 생성된 16자리 비밀번호를 `SENDER_PASSWORD`에 입력
+
+### 4. 실행
 
 ```bash
 make run
 ```
 
-## 💡 사용 방법
-
-1. 프로그램 실행  
-2. 채용공고 URL 입력  
-3. AI 요약 처리 대기 (1-2분 소요)  
-4. 결과 확인 및 파일 저장 완료  
-
-### 예시
+## 사용 방법
 
 ```
-🧪 LangChain 기반 채용공고 요약 시스템 - MVP  
-==================================================  
-📌 채용공고 URL을 입력하세요: https://example.com/job-posting  
-  
-🔧 시스템 초기화 중...  
-📄 채용공고 내용 추출 중...  
-✅ 내용 추출 완료 (길이: 3542 글자)  
-🤖 AI 요약 처리 중... (시간이 조금 걸릴 수 있습니다)  
-  
-==================================================  
-📋 요약 결과:  
-==================================================  
-## 회사명: ABC 테크  
-  
-### A. 회사소개 (비전, 연혁) & 직무 소개 (주요 업무):  
-- 2010년 설립된 핀테크 스타트업으로...  
-  
-💾 결과 저장 중...  
-✅ 저장 완료: output/job_posting_20241122_143052.md  
+============================================================
+  JD-Scanner - AI 기반 채용공고 분석 및 면접 준비 시스템
+============================================================
+
+[Step 1/6] 사용자 정보 입력
+==================================================
+  사용자 정보 입력
+==================================================
+
+이메일 주소를 입력하세요: user@example.com
+
+GitHub 프로필을 추가하시겠습니까? (y/n): y
+GitHub 프로필 URL을 입력하세요: https://github.com/username
+
+환영합니다, user@example.com!
+
+[Step 2/6] 채용공고 입력
+----------------------------------------
+채용공고 URL을 입력하세요: https://example.com/job
+
+[Step 3/6] 채용공고 분석
+...
+
+[Step 4/6] GitHub 프로필 분석
+...
+
+[Step 5/6] 스킬 갭 분석
+...
+
+[Step 6/6] 면접 질문 생성
+...
+
+============================================================
+분석 완료!
+============================================================
 ```
 
-## 📁 프로젝트 구조
+## 출력 형식
 
-```
-job-posting-summarizer/
-├── main.py              # 메인 실행 파일
-├── pyproject.toml       # uv 프로젝트 설정
-├── README.md           # 프로젝트 가이드
-├── uv.lock             # uv 잠금 파일
-├── src/                # 소스 코드 모듈
-│   ├── __init__.py     # 패키지 초기화
-│   ├── chain.py        # LangChain 체인 관리
-│   ├── lang_prompt.py  # 프롬프트 설정 관리
-│   └── lang_template.py # 프롬프트 템플릿 정의
-└── output/             # 요약 결과 저장 폴더
-    └── job_posting_*.md
+### 채용공고 요약
+```markdown
+## 공고명: [공고명]
+### 회사명: [회사명]
+
+**마감기한**
+- [마감일]
+
+### A. 회사소개 & 직무 소개
+### B. 자격요건 & 우대사항
+### C. 혜택 및 복지
 ```
 
-## 🏗️ 모듈 구조
+### 스킬 갭 분석
+```markdown
+### 1. 기술 스킬 매칭 분석
+- 일치하는 기술
+- 부족한 필수 기술
+- 지원자의 추가 기술
 
-### `src/lang_template.py`
-- 프롬프트 템플릿 정의  
-- 기본 요약 템플릿 및 커스텀 템플릿 지원  
-
-### `src/lang_prompt.py`  
-- 프롬프트 설정 관리  
-- 템플릿 유효성 검사 및 포맷팅  
-
-### `src/chain.py`
-- LangChain 체인 관리   
-- Ollama LLM 초기화 및 체인 실행  
-
-### `main.py`
-- 메인 실행 로직  
-- URL 스크래핑 및 파일 저장  
-
-### JobSummaryChain 클래스 옵션
-
-- `model_name`: 사용할 Ollama 모델명 (기본값: "llama3.2")  
-- `temperature`: LLM 창의성 설정 (기본값: 0.1, 범위: 0.0~1.0)  
-
-### 커스터마이징
-
-프롬프트 템플릿을 수정하여 요약 형식을 변경할 수 있습니다:  
-
-```python
-# src/lang_template.py의 get_summary_template() 메서드 수정
-# 또는 새로운 커스텀 템플릿 추가
-
-from src.lang_template import JobSummaryTemplate
-from src.chain import JobSummaryChain
-
-# 커스텀 체인 생성 예시
-template = JobSummaryTemplate.get_custom_template("원하는 포맷")
-chain = JobSummaryChain()
-custom_chain = chain.create_custom_chain(template)
+### 2. 프로젝트 경험 분석
+### 3. 기술 성숙도 평가
+### 4. 종합 매칭 점수
 ```
 
-## ⚠️ 주의사항
+### 면접 질문 (한국어/영어)
+```markdown
+### A. 부족한 기술에 대한 질문
+### B. 대안 기술 선택에 대한 질문
+### C. 기술 갭 극복 계획 질문
+### D. 프로젝트 심화 질문
+### E. 실제 업무 시나리오 질문
+```
 
-- Ollama 서버가 실행 중이어야 합니다  
-- 일부 웹사이트는 봇 차단으로 접근이 제한될 수 있습니다  
-- 큰 페이지의 경우 처리 시간이 오래 걸릴 수 있습니다  
-- 네트워크 연결이 필요합니다  
+## 모듈 설명
 
-## 🐛 문제 해결
+| 모듈 | 설명 |
+|------|------|
+| `main.py` | 메인 실행 로직, 전체 플로우 관리 |
+| `src/chain.py` | JobSummaryChain, SkillGapChain |
+| `src/lang_template.py` | 요약/스킬갭/면접질문 템플릿 |
+| `src/github_analyzer.py` | GitHub API 연동, 프로필 분석 |
+| `src/user_manager.py` | 사용자 정보 수집 및 저장 |
+| `src/email_sender.py` | Gmail SMTP 이메일 발송 |
+| `src/discord_sender.py` | Discord 메시지 전송 |
+
+## 문제 해결
 
 ### Ollama 연결 오류
 ```bash
-# Ollama 서비스 확인
 ollama list
-
-# Ollama 서버 재시작
 ollama serve
 ```
 
-### 모델 다운로드 오류
+### 모델 다운로드
 ```bash
-# 모델 재다운로드
 ollama pull llama3.2
 ```
 
-## 📈 향후 개발 계획
-- Discord 전송 기능  
-- 현업 의견 수집 파이프라인 구축  
+### Gmail 인증 오류
+- 2단계 인증 활성화 확인
+- 앱 비밀번호 사용 (일반 비밀번호 X)
 
+### GitHub API 제한
+- `GITHUB_TOKEN` 설정으로 제한 완화
 
-## 📄 라이선스
-  
+## 버전 정보
+
+**현재 버전:** 0.1.0
+
+### v0.1.0 (New)
+- 이메일 수집 및 발송 기능
+- GitHub 프로필 분석 기능
+- 스킬 갭 분석 기능
+- 맞춤형 면접 질문 생성 (한국어/영어)
+- 사용자 데이터 로컬 저장
+
+### v0.0.2
+- LangChain API 마이그레이션 (LCEL)
+- Discord 메시지 기능
+- 프롬프트 개선
+
+## 라이선스
+
 MIT License
